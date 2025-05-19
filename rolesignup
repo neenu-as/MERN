@@ -1,0 +1,234 @@
+role signin
+
+
+1) index.js 
+
+
+const express= require ('express')
+const mongoose= require ('mongoose')
+const cors = require ('cors')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const cookieParser =require('cookie-parser')
+
+
+const UsersModel =require('./models/User')
+const app = express()
+app.use(express.json())
+app.use(cors({
+    orgin:["http://127.0.0.1"],
+    methods:["GET","POST"],
+    credentials:true
+}))
+
+app.use(cookieParser())
+
+mongoose.connect("mongodb://localhost:27017/employee");
+
+app.post('/login',(req,res)=> {
+    const {email,password} = req.body;
+  UsersModel.findOne({email:email})
+    .then(user =>{
+        if(user){
+            bcrypt.compare(password,user.password,(err,response) => {
+                if(response){
+                    const token = jwt.sign({email:user.email, role:user.role},
+                        "jwt-secret-key", {expiresIn:"1d"})
+                        res.cookie('token',token)
+                        return res.json({Status:"success", role:user.role})
+                }else {
+                    returnres.json("this password is incorrect")
+                }
+            })}
+            else {
+               returnres.json("no record existed")
+            }
+    })
+} )
+
+app.post('/register',(req,res) =>{
+    const {name,email,password} =req.body;
+    bcrypt.hash(password,10)
+    .then( hash => {
+       UsersModel.create({name,email,password:hash})
+        .then (users => res.json("success"))
+    }).catch(err => res.json(err))
+})
+
+
+app.listen(3001,()=>{
+    console.log("server is running")
+})
+
+2) models/users
+
+const mongoose = require ('mongoose')
+
+const UserseSchema = new mongoose.Schema({
+    name: String,
+    email:String,
+    password:String,
+ role :{
+            type:String,
+            default:"visitor"
+        }
+})
+const UsersModel = mongoose.model("users",UserseSchema)
+module.exports=UsersModel
+
+
+3) signup.js
+
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import axios  from 'axios'
+import { useNavigate } from "react-router-dom";
+function Signup() {
+    const [name,setName]= useState()
+    const [email,setEmail]= useState()
+    const [password,setPassword]= useState()
+    const navigate = useNavigate()
+const handleSubmit =(e) => {
+  e.preventDefault()
+  axios.post('http://localhost:3001/register',{name,email,password})
+  .then(res => {
+    navigate('/login')
+  }).catch(err => console.log(err))
+}
+
+
+
+
+
+ return (
+    <div className="d-flex justify-content-center align-items-center bg-secondary vh-100">
+      <div className="bg-white p-3 rounded w-25">
+        <h2>Register</h2>
+        <form onSubmit={handleSubmit}>
+         
+          <div className="mb-3">
+            <label htmlFor="email"><strong>Name</strong> </label>
+            <input type="text" placeholder="Enter Name" autoComplete="off" name="email" className="form-control rounded-0"
+              onChange={(e)=> setName(e.target.value)} />
+           </div>
+         
+          <div className='mb-3'>
+            <label htmlFor='email'> <strong>Email</strong></label>
+             <input type='email' placeholder='Enter Email' autoComplete='off' name='email' className='form-control rounded-0'
+                onChange={(e)=> setEmail(e.target.value)} />
+           </div>
+
+            <div className='mb-3'> <label htmlFor='Password'><strong>Password</strong> </label>
+              <input type='password' placeholder='Enter Password' name='password' className='form-control rounded-0'
+                onChange={(e)=> setPassword(e.target.value)} /> 
+            </div>
+           
+            <button type='submit' className='btn btn-success w-100 rounded-0'>Register</button>
+       </form>
+              <p>Already Have an Account</p>
+          <Link to="/login"className='btn btn-default border w-100 bg-light rounded-0 text-decoration-none'>  Login  </Link>
+       </div>  </div>
+        );
+}
+export default Signup;
+
+
+4) login.js
+
+import React from "react";
+import { useState } from "react";
+
+import { Link } from "react-router-dom";
+import axios  from 'axios'
+import { useNavigate } from "react-router-dom";
+
+function Login() {
+
+    const [email,setEmail]= useState()
+        const [password,setPassword]= useState()
+        const navigate = useNavigate()
+    
+        axios.defaults.withCredentials = true;
+        const handleSubmit =(e)=>{
+          e.preventDefault()
+          axios.post('http://localhost:3001/login',{email,password})
+          .then(res => {
+            if(res.data.Status ==="Success"){
+              if(res.data.role === "admin"){
+                navigate('/dashboard')
+              } else {
+                navigate('/')
+              }
+            }
+          }).catch(err => console.log(err))
+        }
+
+    return(
+        <div className="d-flex justify-content-center align-items-center bg-secondary vh-100">
+        <div className="bg-white p-3 rounded w-25">
+          <h2>Login</h2>
+          <form onSubmit={handleSubmit}>
+             <div className='mb-3'>
+                <label htmlFor='email'>
+                  <strong>Email</strong>
+                </label>
+                <input
+                  type='email'
+                  placeholder='Enter Email'
+                  autoComplete='off'
+                  name='email'
+                  className='form-control rounded-0'
+                  onChange={(e)=> setEmail(e.target.value)}
+                />
+              </div>
+              <div className='mb-3'>
+                <label htmlFor='Password'>
+                  <strong>Password</strong>
+                </label>
+                <input
+                  type='password'
+                  placeholder='Enter Password'
+                  name='password'
+                  className='form-control rounded-0'
+                  onChange={(e)=> setPassword(e.target.value)}
+                />
+              </div>
+                <button type='submit' className='btn btn-success w-100 rounded-0'>
+                Login
+                </button>
+                </form>
+                <p>Already Have an Account</p>
+                <Link to="/login"className='btn btn-default border w-100 bg-light rounded-0 text-decoration-none'>  Login </Link>
+              </div>
+            
+          </div>
+    )
+}
+export default Login;
+5) app.js
+
+import 'bootstrap/dist/css/bootstrap.min.css'
+
+import Signup from './Signup';
+import { BrowserRouter, Routes, Route} from 'react-router-dom'
+import Login from './Login';
+import Home from './Home';
+import Dashboard from './Dashboard';
+
+function App() {
+  return (
+    <BrowserRouter>
+    <Routes>
+    <Route path='/' element={<Home/>}></Route>
+      <Route path='/register' element={<Signup/>}></Route>
+      <Route path='/login' element={<Login/>}></Route>
+      
+      <Route  path='/dashboard' element={<Dashboard/>}></Route>
+      </Routes>
+        </BrowserRouter>
+  );
+}
+
+export default App;
+
+6)
