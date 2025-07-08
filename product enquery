@@ -1,0 +1,416 @@
+
+1)app.js
+------------
+
+import './App.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import ProductList from './Components/ProductList';
+import AddProduct from './Components/AddProduct';
+import EditProduct from './Components/EditProduct';
+import EnquiryList from './Components/EnquiryList';
+import AddEnquiry from './Components/AddEnquiry';
+import EditEnquiry from './Components/EditEnquiry';
+
+function App() {
+  return (
+    //  <Router>
+    //   <Routes>
+    //     <Route path="/" element={<ProductList />} />
+    //     <Route path="/add" element={<AddProduct />} />
+    //     <Route path="/edit/:id" element={<EditProduct />} />
+    //   </Routes>
+    // </Router>
+        <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<ProductList />} />
+        <Route path="/create" element={<AddProduct />} />
+        <Route path="/edit/:id" element={<EditProduct />} />
+        <Route path="/enquiries" element={<EnquiryList />} />
+<Route path="/enquiries/create" element={<AddEnquiry />} />
+<Route path="/enquiries/edit/:id" element={<EditEnquiry/>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+2)add enquery
+---------------
+// import React, { useState } from 'react';
+// import axios from 'axios';
+// import { useNavigate } from 'react-router-dom';
+
+// function AddEnquiry() {
+//   const [title, setTitle] = useState('');
+//   const [rentalStartDate, setStartDate] = useState('');
+//   const [rentalEndDate, setEndDate] = useState('');
+//   const navigate = useNavigate();
+
+//   const handleSubmit = (e) => {
+//     e.preventDefault();
+//     axios.post('http://localhost:3001/enquiries', {
+//       title, rentalStartDate, rentalEndDate
+//     }).then(() => navigate('/enquiries'));
+//   };
+
+//   return (
+//     <div className="container mt-4">
+//       <h2>Add Enquiry</h2>
+//       <form onSubmit={handleSubmit}>
+//         <input className="form-control mb-2" type="text" placeholder="Title" onChange={e => setTitle(e.target.value)} required/>
+//         <input className="form-control mb-2" type="date" onChange={e => setStartDate(e.target.value)} required />
+//         <input className="form-control mb-2" type="date" onChange={e => setEndDate(e.target.value)} required />
+//         <button className="btn btn-primary">Submit</button>
+//       </form>
+//     </div>
+//   );
+// }
+
+// export default AddEnquiry;
+
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+
+function AddEnquiry() {
+  const [title, setTitle] = useState('');
+  const [rentalStartDate, setStartDate] = useState('');
+  const [rentalEndDate, setEndDate] = useState('');
+  const [products, setProducts] = useState([]); // all products
+  const [selectedProducts, setSelectedProducts] = useState([]); // selected product IDs
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios.get('http://localhost:3001/products')
+      .then(res => setProducts(res.data));
+  }, []);
+
+  const handleProductSelect = (e, id) => {
+    if (e.target.checked) {
+      setSelectedProducts([...selectedProducts, id]);
+    } else {
+      setSelectedProducts(selectedProducts.filter(p => p !== id));
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!title || !rentalStartDate || !rentalEndDate || selectedProducts.length === 0) {
+      return alert("Please fill all fields and select at least one product.");
+    }
+
+    axios.post('http://localhost:3001/enquiries', {
+      title,
+      rentalStartDate,
+      rentalEndDate,
+      products: selectedProducts
+    })
+    .then(() => navigate('/enquiries'))
+    .catch(err => {
+      if (err.response?.data?.error) {
+        alert(err.response.data.error);
+      } else {
+        alert("Something went wrong");
+      }
+    });
+  };
+
+  return (
+    <div className="container mt-4">
+      <h2>Add Enquiry</h2>
+      <form onSubmit={handleSubmit}>
+        <input className="form-control mb-2" type="text" placeholder="Title" onChange={e => setTitle(e.target.value)} />
+        <input className="form-control mb-2" type="date" onChange={e => setStartDate(e.target.value)} />
+        <input className="form-control mb-2" type="date" onChange={e => setEndDate(e.target.value)} />
+
+        <div className="mb-3">
+          <label><strong>Select Products:</strong></label>
+          {products.map(p => (
+            <div key={p._id}>
+              <input
+                type="checkbox"
+                value={p._id}
+                onChange={e => handleProductSelect(e, p._id)}
+              />{" "}
+              {p.name} (Stock: {p.availableStock})
+            </div>
+          ))}
+        </div>
+
+        <button className="btn btn-primary">Submit</button>
+      </form>
+    </div>
+  );
+}
+
+export default AddEnquiry;
+
+
+3) edit enquery
+-------------------
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useParams, useNavigate } from 'react-router-dom';
+
+function EditEnquiry() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [title, setTitle] = useState('');
+  const [rentalStartDate, setStartDate] = useState('');
+  const [rentalEndDate, setEndDate] = useState('');
+
+  useEffect(() => {
+    axios.get(`http://localhost:3001/enquiries/${id}`)
+      .then(res => {
+        setTitle(res.data.title);
+        setStartDate(res.data.rentalStartDate?.substring(0, 10));
+        setEndDate(res.data.rentalEndDate?.substring(0, 10));
+      });
+  }, [id]);
+
+  const handleUpdate = (e) => {
+    e.preventDefault();
+    axios.put(`http://localhost:3001/enquiries/${id}`, {
+      title, rentalStartDate, rentalEndDate
+    }).then(() => navigate('/enquiries'));
+  };
+
+  return (
+    <div className="container mt-4">
+      <h2>Edit Enquiry</h2>
+      <form onSubmit={handleUpdate}>
+        <input className="form-control mb-2" type="text" value={title} onChange={e => setTitle(e.target.value)} />
+        <input className="form-control mb-2" type="date" value={rentalStartDate} onChange={e => setStartDate(e.target.value)} />
+        <input className="form-control mb-2" type="date" value={rentalEndDate} onChange={e => setEndDate(e.target.value)} />
+        <button className="btn btn-success">Update</button>
+      </form>
+    </div>
+  );
+}
+
+export default EditEnquiry;
+
+4) list enquery
+-----------------
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Link } from 'react-router-dom';
+
+function EnquiryList() {
+  const [enquiries, setEnquiries] = useState([]);
+
+  useEffect(() => {
+    axios.get('http://localhost:3001/enquiries')
+      .then(res => setEnquiries(res.data));
+  }, []);
+
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure?")) {
+      axios.delete(`http://localhost:3001/enquiries/${id}`)
+        .then(() => window.location.reload());
+    }
+  };
+
+  return (
+    <div className="container mt-4">
+      <Link to="/enquiries/create" className="btn btn-primary mb-3">Add Enquiry</Link>
+      <table className="table table-bordered">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {enquiries.map(e => (
+            <tr key={e._id}>
+              <td>{e.title}</td>
+              <td>{e.rentalStartDate?.substring(0, 10)}</td>
+              <td>{e.rentalEndDate?.substring(0, 10)}</td>
+              <td>
+                <Link to={`/enquiries/edit/${e._id}`} className="btn btn-sm btn-warning me-2">Edit</Link>
+                <button onClick={() => handleDelete(e._id)} className="btn btn-sm btn-danger">Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default EnquiryList;
+
+5)models/enquery
+-------------------
+const mongoose = require("mongoose");
+
+const EnquirySchema = new mongoose.Schema({
+  title: String,              
+  rentalStartDate: Date,       
+  rentalEndDate: Date , 
+  products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]        
+});
+
+const EnquiryModel = mongoose.model("Enquiry", EnquirySchema);
+module.exports = EnquiryModel;
+
+6)
+index.js
+----------
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
+const ProductModel = require('./models/product'); 
+const EnquiryModel = require('./models/enquiry');
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static('uploads'));
+
+mongoose.connect("mongodb://localhost:27017/mernexam", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log("MongoDB connected"))
+.catch(err => console.log(err));
+
+// ✅ Multer setup
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage: storage });
+
+// ✅ Create Product
+app.post("/products", upload.single("image"), async (req, res) => {
+  const { name, sku, availableStock } = req.body;
+  const image = req.file?.filename;
+  const product = await ProductModel.create({ name, sku, availableStock, image });
+  res.json(product);
+});
+
+// ✅ Get All Products
+app.get("/products", async (req, res) => {
+  const products = await ProductModel.find();
+  res.json(products);
+});
+
+// ✅ Update Product
+app.put("/products/:id", upload.single("image"), async (req, res) => {
+  const update = req.body;
+  if (req.file) update.image = req.file.filename;
+  const product = await ProductModel.findByIdAndUpdate(req.params.id, update, { new: true });
+  res.json(product);
+});
+
+// ✅ Delete Product
+app.delete("/products/:id", async (req, res) => {
+  await ProductModel.findByIdAndDelete(req.params.id);
+  res.json({ message: "Deleted" });
+});
+
+
+
+
+
+
+// ✅ Create Enquiry
+// app.post("/enquiries", async (req, res) => {
+//   try {
+//     const enquiry = await EnquiryModel.create(req.body);
+//     res.json(enquiry);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
+
+app.post("/enquiries", async (req, res) => {
+  const { title, rentalStartDate, rentalEndDate, products } = req.body;
+
+  try {
+    // Find if any product is already booked in overlapping dates
+    const conflict = await EnquiryModel.findOne({
+      products: { $in: products }, // if any selected product is already in another enquiry
+      $or: [
+        {
+          rentalStartDate: { $lte: rentalEndDate },
+          rentalEndDate: { $gte: rentalStartDate }
+        }
+      ]
+    }).populate("products");
+
+    if (conflict) {
+      return res.status(400).json({ error: "One or more selected products are already booked in this date range." });
+    }
+
+    // If no conflict, save the enquiry
+    const newEnquiry = await EnquiryModel.create({
+      title,
+      rentalStartDate,
+      rentalEndDate,
+      products
+    });
+
+    res.json(newEnquiry);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ✅ Get All Enquiries
+app.get("/enquiries", async (req, res) => {
+  try {
+    const enquiries = await EnquiryModel.find();
+    res.json(enquiries);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ Get One Enquiry by ID
+app.get("/enquiries/:id", async (req, res) => {
+  try {
+    const enquiry = await EnquiryModel.findById(req.params.id);
+    res.json(enquiry);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ Update Enquiry
+app.put("/enquiries/:id", async (req, res) => {
+  try {
+    const updated = await EnquiryModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ Delete Enquiry
+app.delete("/enquiries/:id", async (req, res) => {
+  try {
+    await EnquiryModel.findByIdAndDelete(req.params.id);
+    res.json({ message: "Enquiry deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+ 
+app.listen(3001, () => {
+  console.log("server is running");
+});
+
+
