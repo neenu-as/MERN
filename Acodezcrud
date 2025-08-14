@@ -1,0 +1,614 @@
+crud with _fileupload_filter_search
+
+
+
+APP.JS
+
+import './App.css';
+import React from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css'
+import {BrowserRouter,Routes,Route} from "react-router-dom"
+import Createstock from './Createstock';
+import Editstck from './Editstck';
+import Home from './Home';
+
+function App() {
+  return (
+    <div >
+      <BrowserRouter>
+      <Routes>
+          <Route path="/" element={<Home/>}> </Route>
+        <Route path="/create" element={<Createstock/>}> </Route>
+        <Route path="/edit/:id"  element={<Editstck/>}> </Route>
+          </Routes>
+          </BrowserRouter>
+   
+    </div>
+  );
+}
+
+export default App;
+
+
+2.HOME.JS
+
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { Link } from "react-router-dom";
+
+export default function Home() {
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+
+  // Fetch products from backend
+  useEffect(() => {
+    axios
+      .get("http://localhost:3001/products")
+      .then((res) => {
+        setProducts(res.data);
+        setFilteredProducts(res.data);
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
+  // Apply all filters
+  useEffect(() => {
+    let data = [...products];
+
+    if (search.trim()) {
+      data = data.filter((p) =>
+        p.pname.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    if (statusFilter) {
+      data = data.filter((p) => p.status === statusFilter);
+    }
+
+    if (fromDate) {
+      data = data.filter((p) => new Date(p.date) >= new Date(fromDate));
+    }
+
+    if (toDate) {
+      data = data.filter((p) => new Date(p.date) <= new Date(toDate));
+    }
+
+    if (stockFilter === "in") {
+      data = data.filter((p) => p.Quantity > 0);
+    } else if (stockFilter === "out") {
+      data = data.filter((p) => p.Quantity === 0);
+    }
+
+    setFilteredProducts(data);
+  }, [search, statusFilter, fromDate, toDate, stockFilter, products]);
+
+  // Handle Delete
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure to delete this product?")) {
+      axios
+        .delete(`http://localhost:3001/deleteProduct/${id}`)
+        .then(() => {
+          const updatedList = products.filter((p) => p._id !== id);
+          setProducts(updatedList);
+        })
+        .catch((err) => console.log(err));
+    }
+  };
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-100 bg-white rounded p-4">
+        <h2 className="text-center mb-5">Stock Listing</h2>
+        <Link to="/create" className="btn btn-primary mb-2">
+          Add +
+        </Link>
+
+        {/* Filter Row */}
+        <div className="row mb-3">
+          <div className="col-md-3 mb-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by name"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <input
+              type="date"
+              className="form-control"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <input
+              type="date"
+              className="form-control"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-3 mb-2">
+            <select
+              className="form-control"
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+            >
+              <option value="">All Stock</option>
+              <option value="in">In Stock</option>
+              <option value="out">Out of Stock</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Products Table */}
+        <table className="table table-bordered table-striped text-center">
+          <thead >
+            <tr>
+              <th>Product ID</th>
+              <th>Image</th>
+              <th>Product Name</th>
+              <th>Quantity</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => (
+                <tr key={product._id}>
+                  <td>{product._id}</td>
+                  <td>
+                    {product.image ? (
+                      <img
+                        src={`http://localhost:3001/uploads/${product.image}`}
+                        alt="product"
+                        width="50"
+                        height="50"
+                      />
+                    ) : (
+                      "No Image"
+                    )}
+                  </td>
+                  <td>{product.pname}</td>
+                  <td>{product.Quantity}</td>
+                  <td>{product.status}</td>
+                  <td>{new Date(product.date).toLocaleDateString()}</td>
+                  <td>
+                    <Link
+                      to={`/edit/${product._id}`}
+                      className="btn btn-success btn-sm me-2"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(product._id)}
+                      className="btn btn-danger btn-sm"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="text-center">
+                  No products found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+3.CREATE STOCK.JS
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+export default function Createstock() {
+  const [productId, setProductId] = useState("");
+  const [productName, setProductName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [status, setStatus] = useState("");
+  const [date, setDate] = useState("");
+  const [image, setImage] = useState(null);
+
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+
+    // Only include productId if you plan to save it in DB
+    formData.append("productId", productId);
+    formData.append("productName", productName);
+    formData.append("quantity", quantity);
+    formData.append("status", status);
+    formData.append("date", date);
+    formData.append("productImage", image);
+
+    try {
+      await axios.post("http://localhost:3001/submit-product", formData);
+      alert("Product created successfully!");
+      navigate("/");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create product.");
+    }
+  };
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-50 bg-white rounded p-5">
+        <form onSubmit={handleSubmit} encType="multipart/form-data">
+          <div style={{ maxWidth: "400px" }}>
+            <h3 className="text-center">Create Product</h3>
+
+            <label htmlFor="productId">Product ID:</label>
+            <input
+              type="text"
+              id="productId"
+              name="productId"
+              className="form-control"
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+            />
+
+            <label htmlFor="productImage">Upload Image:</label>
+            <input
+              type="file"
+              id="productImage"
+              name="productImage"
+              accept="image/*"
+              required
+              className="form-control"
+              onChange={(e) => setImage(e.target.files[0])}
+            />
+
+            <label htmlFor="productName">Product Name:</label>
+            <input
+              type="text"
+              id="productName"
+              name="productName"
+              required
+              className="form-control"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+            />
+
+            <label htmlFor="quantity">Quantity:</label>
+            <input
+              type="number"
+              id="quantity"
+              name="quantity"
+              min="0"
+              required
+              className="form-control"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+            />
+
+            <label htmlFor="date">Stock Date:</label>
+            <input
+              type="date"
+              id="date"
+              name="date"
+              required
+              className="form-control"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+
+            <label htmlFor="status">Status:</label>
+            <select
+              id="status"
+              name="status"
+              required
+              className="form-control"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="">--Select Status--</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <br />
+            <button type="submit" className="btn btn-danger">
+              Create Product
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+4.UPDATE STOCK.JS
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+
+export default function Editstck() {
+  const { id } = useParams(); // Get product ID from URL
+  const navigate = useNavigate();
+
+  // Form fields
+  const [productName, setProductName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [date, setDate] = useState("");
+  const [status, setStatus] = useState("");
+  const [image, setImage] = useState(null);
+
+  // Fetch product data on component mount
+  useEffect(() => {
+    axios.get(`http://localhost:3001/getProduct/${id}`)
+      .then(res => {
+        const product = res.data;
+        setProductName(product.pname);
+        setQuantity(product.Quantity);
+        setDate(product.date?.split("T")[0]); // Format: YYYY-MM-DD
+        setStatus(product.status);
+      })
+      .catch(err => console.log("Fetch error:", err));
+  }, [id]);
+
+  // Handle update form submission
+  const handleUpdate = (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("pname", productName);
+    formData.append("Quantity", quantity);
+    formData.append("date", date);
+    formData.append("status", status);
+    if (image) {
+      formData.append("productImage", image);
+    }
+
+    axios.put(`http://localhost:3001/updateProduct/${id}`, formData)
+      .then(() => {
+        alert("Product updated successfully!");
+        navigate("/");
+      })
+      .catch(err => console.log("Update failed:", err));
+  };
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-50 bg-white rounded p-5">
+        <form onSubmit={handleUpdate} encType="multipart/form-data">
+          <div style={{ maxWidth: "400px" }}>
+            <h3 className="text-center">EDIT Product</h3>
+
+            <label htmlFor="productName">Product Name:</label>
+            <input
+              type="text"
+              id="productName"
+              className="form-control"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              required
+            />
+
+            <label htmlFor="quantity">Quantity:</label>
+            <input
+              type="number"
+              id="quantity"
+              className="form-control"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              required
+            />
+
+            <label htmlFor="date">Stock Date:</label>
+            <input
+              type="date"
+              id="date"
+              className="form-control"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+
+            <label htmlFor="status">Status:</label>
+            <select
+              id="status"
+              className="form-control"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              required
+            >
+              <option value="">--Select Status--</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <label htmlFor="productImage">Upload New Image (optional):</label>
+            <input
+              type="file"
+              id="productImage"
+              className="form-control"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files[0])}
+            />
+
+            <br />
+            <button type="submit" className="btn btn-danger w-100">Update Product</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+5.INDEX.JS(BACKEND)
+const express = require('express')
+const mongoose = require('mongoose')
+const cors = require('cors')
+const multer = require('multer')
+const path = require('path')
+const UserModel = require('./models/Users')
+const app = express();
+
+
+app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static('uploads'));
+
+mongoose.connect("mongodb://localhost:27017/newmern" , {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log("MongoDB connected"))
+.catch(err => console.log(err));
+
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage: storage });
+
+app.post('/submit-product', upload.single('productImage'), async (req, res) => {
+  try {
+    const newProduct = new UserModel({
+      pname: req.body.productName,
+      Quantity: req.body.quantity,
+      image: req.file.filename,
+      date: req.body.date,
+      status: req.body.status
+    });
+    await newProduct.save();
+    res.status(200).json({ message: 'Product created', product: newProduct });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+});
+
+
+//fetch data   
+app.get("/products", async (req, res) => {
+  try {
+    const products = await UserModel.find({});
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+////update 
+ app.put('/updateProduct/:id', upload.single('productImage'), async (req, res) => {
+  try {
+    const { pname, Quantity, status, date } = req.body;
+
+    const updateData = {
+      pname,
+      Quantity,
+      status,
+      date
+    };
+
+    if (req.file) {
+      updateData.image = req.file.filename; // add new image only if uploaded
+    }
+
+    const updatedProduct = await UserModel.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json(updatedProduct);
+  } catch (err) {
+    console.error("Update failed:", err);
+    res.status(500).json({ error: "Failed to update product" });
+  }
+});
+
+//fetch data for update 
+app.get('/getProduct/:id', (req, res) => {
+  const { id } = req.params;
+  UserModel.findById(id)
+    .then(product => res.json(product))
+    .catch(err => res.status(500).json({ error: "Failed to fetch product" }));
+});
+// delete data 
+
+app.delete('/deleteProduct/:id', async (req, res) => {
+  try {
+    const deletedProduct = await UserModel.findByIdAndDelete(req.params.id);
+
+    if (!deletedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json({ message: "Product deleted from DB successfully" });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ error: "Failed to delete product" });
+  }
+});
+
+app.listen(3001,()=>{
+    console.log("server is running")
+})
+6.MODELS/USERS.JS
+const mongoose =require("mongoose")
+
+const UserSchema =new mongoose.Schema({
+    pname: {
+    type: String,
+    required: true,
+    trim: true
+  },
+ Quantity: {
+  type: Number,
+  required: true,
+  default: 0 
+},
+ 
+  image: {
+    type: String 
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active'
+  }
+});
+
+const UserModel = mongoose.model("users",UserSchema)
+module.exports = UserModel
