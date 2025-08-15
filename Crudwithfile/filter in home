@@ -1,0 +1,180 @@
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { Link } from "react-router-dom";
+export default function Home() {
+      const [products, setProducts] = useState([]);
+      const [searchTerm, setSearchTerm] = useState("");
+        const [filteredProducts, setFilteredProducts] = useState([]);
+ 
+  const [statusFilter, setStatusFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+
+
+       useEffect(() => {
+    axios.get("http://localhost:5000/api/products")
+      .then((res) => {
+        setProducts(res.data);
+        setFilteredProducts(res.data);
+      })
+      .catch(err => console.log(err));
+  }, []);
+
+   const handleDelete = (id) => {
+    axios.delete(`http://localhost:5000/api/products/${id}`)
+      .then(() => setProducts(products.filter(p => p._id !== id)));
+  };
+ useEffect(() => {
+    let data = [...products];
+
+    if (searchTerm.trim()) {
+      data = data.filter((p) =>
+       p.productName.toLowerCase().includes(searchTerm.toLowerCase())
+
+      );
+    }
+
+    if (statusFilter) {
+      data = data.filter((p) => p.status === statusFilter);
+    }
+
+    if (fromDate) {
+      data = data.filter((p) => new Date(p.date) >= new Date(fromDate));
+    }
+
+    if (toDate) {
+      data = data.filter((p) => new Date(p.date) <= new Date(toDate));
+    }
+if (stockFilter === "in") {
+  data = data.filter((p) => p.quantity > 0);
+} else if (stockFilter === "out") {
+  data = data.filter((p) => p.quantity === 0);
+}
+
+    setFilteredProducts(data);
+  }, [searchTerm, statusFilter, fromDate, toDate, stockFilter, products]);
+  
+
+     return (
+    <div style={{ padding: "20px" }}>
+      <h2>Product List</h2>
+      <Link to="/create" >
+        <button>Add Product</button>
+      </Link>
+      
+      {/* ✅ Search Input */}
+      {/* <input
+        type="text"
+        placeholder="Search by product name..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{
+          marginLeft: "20px",
+          padding: "5px",
+          width: "200px"
+        }}
+      /> */}
+             {/* Filter Row */}
+        <div className="row mb-3">
+          <div className="col-md-3 mb-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by name"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <input
+              type="date"
+              className="form-control"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <input
+              type="date"
+              className="form-control"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-3 mb-2">
+            <select
+              className="form-control"
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+            >
+              <option value="">All Stock</option>
+              <option value="in">In Stock</option>
+              <option value="out">Out of Stock</option>
+            </select>
+          </div>
+        </div>
+      <table border="1" cellPadding="10" style={{ marginTop: "20px" }}>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Product Name</th>
+            <th>Image</th>
+            <th>Quantity</th>
+            <th>Rate</th>
+            <th>Date</th>
+            <th>status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+               {filteredProducts.length > 0 ? (
+              filteredProducts.map((p,index) => (
+                <tr key={p._id}>
+                  <td>{index + 1}</td>
+                
+              <td>{p.productName}</td>
+              <td>
+                {p.image && <img src={`http://localhost:5000${p.image}`} alt="" width="50" />}
+              </td>
+              <td>{p.quantity}</td>
+              <td>{p.rate}</td>
+              <td>{new Date(p.date).toLocaleDateString()}</td>
+              <td>{p.status}</td>
+              <td>
+                <Link to={`/edit/${p._id}`}>
+                  <button>Edit</button>
+                </Link>
+                <button onClick={() => handleDelete(p._id)} style={{ marginLeft: "10px" }}>Delete</button>
+              </td>
+            </tr>
+          ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="text-center">
+                  No products found
+                </td>
+              </tr>
+            )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+  
+
