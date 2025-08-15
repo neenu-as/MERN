@@ -1,0 +1,746 @@
+basics of mernstack. (crud with file,search,filter,pagination,user login-> home , admin login -> dashboard)
+
+
+//don't forget to manually create a uploads folder on backend.for file storage 
+// remember to add   
+,"start": "nodemon index.js" in backend package.json file.
+
+eg:
+-----
+
+"scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+
+1.App.js
+
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import 'bootstrap/dist/css/bootstrap.min.css'
+import Update from './Update';
+import CreateProduct from './Createproduct';
+import Signup from "./Signup";
+import Login from "./Login";
+import Home from "./Home";
+import Dashboard from "./Dashboard";
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/home" element={<Home />} />
+          <Route path="/create" element={<CreateProduct/>}/>
+
+<Route path="/edit/:id" element={<Update/>}/>
+
+        <Route path="/dashboard" element={<Dashboard />} />
+       <Route path="*" element={<Navigate to="/signup" />} />
+
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
+
+2. home.js
+--------------------
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { Link } from "react-router-dom";
+
+export default function Home() {
+  const [products, setProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
+
+  const [statusFilter, setStatusFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+
+  // ✅ Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/products")
+      .then((res) => {
+        setProducts(res.data);
+        setFilteredProducts(res.data);
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
+  const handleDelete = (id) => {
+    axios
+      .delete(`http://localhost:5000/api/products/${id}`)
+      .then(() => setProducts(products.filter((p) => p._id !== id)));
+  };
+
+  useEffect(() => {
+    let data = [...products];
+
+    if (searchTerm.trim()) {
+      data = data.filter((p) =>
+        p.productName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (statusFilter) {
+      data = data.filter((p) => p.status === statusFilter);
+    }
+
+    if (fromDate) {
+      data = data.filter((p) => new Date(p.date) >= new Date(fromDate));
+    }
+
+    if (toDate) {
+      data = data.filter((p) => new Date(p.date) <= new Date(toDate));
+    }
+
+    if (stockFilter === "in") {
+      data = data.filter((p) => p.quantity > 0);
+    } else if (stockFilter === "out") {
+      data = data.filter((p) => p.quantity === 0);
+    }
+
+    setFilteredProducts(data);
+    setCurrentPage(1); // ✅ Reset to first page when filters change
+  }, [searchTerm, statusFilter, fromDate, toDate, stockFilter, products]);
+
+  // ✅ Pagination Logic
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-100 bg-white rounded p-4">
+      <h2 className="text-center mb-5">Product List</h2>
+      <Link to="/create" className="btn btn-primary mb-2">
+       Add Product
+      </Link>
+
+      {/* Filter Row */}
+      <div className="row mb-3">
+        <div className="col-md-3 mb-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search by name"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="col-md-2 mb-2">
+          <select
+            className="form-control"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+
+        <div className="col-md-2 mb-2">
+          <input
+            type="date"
+            className="form-control"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+          />
+        </div>
+
+        <div className="col-md-2 mb-2">
+          <input
+            type="date"
+            className="form-control"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+          />
+        </div>
+
+        <div className="col-md-3 mb-2">
+          <select
+            className="form-control"
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value)}
+          >
+            <option value="">All Stock</option>
+            <option value="in">In Stock</option>
+            <option value="out">Out of Stock</option>
+          </select>
+        </div>
+      </div>
+
+      <table className="table table-bordered table-striped text-center">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Product Name</th>
+            <th>Image</th>
+            <th>Quantity</th>
+            <th>Rate</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentData.length > 0 ? (
+            currentData.map((p, index) => (
+              <tr key={p._id}>
+                <td>{startIndex + index + 1}</td>
+                <td>{p.productName}</td>
+                <td>
+                  {p.image && (
+                    <img
+                      src={`http://localhost:5000${p.image}`}
+                      alt=""
+                      width="50"
+                      height='50'
+                    />
+                  )}
+                </td>
+                <td>{p.quantity}</td>
+                <td>{p.rate}</td>
+                <td>{new Date(p.date).toLocaleDateString()}</td>
+                <td>{p.status}</td>
+                <td>
+                  <Link to={`/edit/${p._id}`}>
+                    <button>Edit</button>
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(p._id)}
+                    style={{ marginLeft: "10px" }}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="8" className="text-center">
+                No products found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      {/* ✅ Pagination Controls */}
+      <div style={{ marginTop: "20px" }}>
+        {Array.from({ length: totalPages }, (_, index) => (
+          <button
+            key={index}
+            style={{
+              margin: "5px",
+              backgroundColor: currentPage === index + 1 ? "lightblue" : "",
+            }}
+            onClick={() => setCurrentPage(index + 1)}
+          >
+            {index + 1}
+          </button>
+        ))}
+      </div>
+    </div>
+    </div>
+    
+  );
+}
+3.create.js
+-----------------
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+function CreateProduct() {
+  const [productName, setProductName] = useState("");
+  const [image, setImage] = useState(null);
+  const [quantity, setQuantity] = useState("");
+  const [rate, setRate] = useState("");
+  const [date,setDate]=useState("");
+  const [status,setStatus] =useState("active");
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("productName", productName);
+    formData.append("image", image);
+    formData.append("quantity", quantity);
+    formData.append("rate", rate);
+    formData.append("date", date);
+    formData.append("status",status);
+
+    axios.post("http://localhost:5000/api/products", formData)
+      .then(() => navigate("/"));
+  };
+
+  return (
+ <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-50 bg-white rounded p-5">
+        
+      <h2 className="text-center">Create Product</h2>
+      <form onSubmit={handleSubmit} encType="multipart/form-data">
+      <div style={{ maxWidth: "400px" }}>
+        <input type="text"
+         placeholder="Product Name" 
+         onChange={(e) => setProductName(e.target.value)} 
+         required 
+         className="form-control"/>
+         <br /><br />
+
+        <input type="file" 
+        onChange={(e) => setImage(e.target.files[0])}
+         accept="image/*"
+         className="form-control"/>
+         <br /><br />
+
+
+
+        <input type="number"
+         placeholder="Quantity"
+          onChange={(e) => setQuantity(e.target.value)} 
+          required className="form-control"/><br /><br />
+
+
+        <input type="number"
+         placeholder="Rate"
+          onChange={(e) => setRate(e.target.value)}
+           required className="form-control" /><br /><br />
+
+
+            <input
+              type="date"
+              id="date"
+              name="date"
+              required
+              className="form-control"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            /><br/><br/>
+        <select value={status}
+         onChange={e => setStatus(e.target.value)}
+          className="form-control">
+         
+          <option value="active">active</option>
+          <option value="inactive">inactive</option>
+        </select><br /><br />
+
+
+        <button type="submit">Save</button>
+        </div>
+      </form>
+      </div>
+    </div>
+    
+  );
+}
+
+export default CreateProduct;
+
+4.update.js
+----------------
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate, useParams } from "react-router-dom";
+
+export default function Update() {
+
+     const { id } = useParams();
+  const [productName, setProductName] = useState("");
+  const [image, setImage] = useState(null);
+  const [quantity, setQuantity] = useState("");
+  const [rate, setRate] = useState("");
+  const [date,setDate]=useState("");
+    const [status,setStatus] =useState("active");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios.get(`http://localhost:5000/api/products/${id}`)
+      .then(res => {
+        setProductName(res.data.productName);
+        setQuantity(res.data.quantity);
+        setRate(res.data.rate);
+      // setDate(res.date?.split("T")[0]); // Format: YYYY-MM-DD
+         setDate(new Date(res.data.date).toISOString().split("T")[0]);
+        setStatus(res.data.status);
+      });
+  }, [id]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("productName", productName);
+    if (image) formData.append("image", image);
+    formData.append("quantity", quantity);
+    formData.append("rate", rate);
+    formData.append("date", new Date(date).toISOString());
+     formData.append("status", status);
+
+    axios.put(`http://localhost:5000/api/products/${id}`, formData)
+      .then(() => navigate("/"));
+  };
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-50 bg-white rounded p-5">
+     
+      <form onSubmit={handleSubmit} encType="multipart/form-data">
+      <div style={{ maxWidth: "400px" }}>
+       <h2 className="text-center">Edit Product</h2>
+    
+
+        <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required  className="form-control" /><br /><br />
+        <input type="file" onChange={(e) => setImage(e.target.files[0])}  accept="image/*"/><br /><br />
+        <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required  className="form-control"/><br /><br />
+        <input type="number" value={rate} onChange={(e) => setRate(e.target.value)} required  className="form-control"/><br /><br />
+         <input
+              type="date"
+              id="date"
+              name="date"
+              required
+              className="form-control"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            /><br/><br/>
+         <select  value={status} onChange={(e) => setStatus(e.target.value)}  className="form-control">
+          {/* <option value="">all status</option> */}
+          <option value="active" >active</option>
+          <option value="inactive">inactive</option>
+        </select><br /><br />
+        <button type="submit">Update</button></div>
+      </form>
+    </div>
+    </div>
+    
+  )
+}
+5.login.js
+----------
+import { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post("http://localhost:5000/api/login", { email, password });
+      localStorage.setItem("token", res.data.token);
+
+      if (res.data.role === "admin") navigate("/dashboard");
+      else navigate("/home");
+    } catch (error) {
+      // Safe error handling
+      const message = error.response?.data?.message || error.message || "Something went wrong";
+      alert(message);
+    }
+  };
+
+  return (
+     <div className="d-flex justify-content-center align-items-center vh-100 bg-secondary">
+      <div className="bg-white p-3 rounded w-25">
+    <form onSubmit={handleSubmit}>
+      <h2>Login</h2>
+      <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="form-control mb-2" required />
+      <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)}  className="form-control mb-2" required />
+      <button  className="btn btn-primary" type="submit">Login</button>
+    </form>
+    </div></div>
+  );
+}
+
+
+6.signup.js
+----------------
+import { useState } from "react";
+import axios from "axios";
+import { useNavigate,Link } from "react-router-dom";
+
+export default function Signup() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post("http://localhost:5000/api/signup", { name, email, password });
+      alert("Signup successful! Please login.");
+      navigate("/login");
+    } catch (error) {
+      // Safe error handling
+      const message = error.response?.data?.message || error.message || "Something went wrong";
+      alert(message);
+    }
+  };
+
+  return (
+    <div className="d-flex justify-content-center align-items-center vh-100 bg-secondary">
+      <div className="bg-white p-3 rounded w-25">
+    <form onSubmit={handleSubmit}>
+      <h2>User Signup</h2>
+      <input placeholder="Name" value={name} onChange={e => setName(e.target.value)} className="form-control mb-2"  required />
+      <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="form-control mb-2" required />
+      <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="form-control mb-2"  required />
+      <button className="btn btn-primary" type="submit">Signup</button>
+       <p>
+        Already have an account? <Link to="/login">Login here</Link>
+      </p>
+    </form>
+    </div>
+    </div>
+  );
+}
+
+
+7.dashboard.js
+------------
+import React from 'react'
+
+export default function Dashboard() {
+  return (
+    <div>Welcome Admin Dashboard</div>
+  )
+}
+
+
+8.(backend)/models/user.js
+-----------------------------
+const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: { type: String, default: "user" } // "user" or "admin"
+});
+
+module.exports = mongoose.model("User", userSchema);
+
+
+9.models/products.js
+---------------------
+const mongoose = require("mongoose");
+
+const ProductSchema = new mongoose.Schema({
+  productName: { type: String, required: true },
+  image: { type: String }, // store file path
+  quantity: { type: Number, required: true },
+  rate: { type: Number, required: true },
+  date: { type: Date, default: Date.now },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active'
+  }
+});
+
+module.exports = mongoose.model("Product", ProductSchema);
+
+10.models/employee.js
+------------------------
+
+const mongoose = require ('mongoose')
+
+const EmployeeSchema = new mongoose.Schema({
+    name: String,
+    email:String,
+    password:String
+})
+const EmployeeModel = mongoose.model("employees",EmployeeSchema)
+module.exports=EmployeeModel
+
+
+
+
+
+
+11.index.js(backend)
+--------------------------
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const path = require("path");
+
+const Product = require("./models/Product");
+
+const User = require("./models/User");
+
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // serve images
+
+// Multer setup for image upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads"),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage });
+
+// Connect to MongoDB
+mongoose.connect("mongodb://127.0.0.1:27017/productsdb")
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log(err));
+
+
+  
+const JWT_SECRET = "your_secret_key"; 
+
+// Create admin if not exists
+async function createAdmin() {
+  const adminEmail = "admin@gmail.com";
+  const adminPassword = "admin@123";
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+  // Upsert: create if not exists, otherwise update password
+  await User.findOneAndUpdate(
+    { email: adminEmail },
+    { name: "Admin", email: adminEmail, password: hashedPassword, role: "admin" },
+    { upsert: true }
+  );
+
+  console.log("Admin account ensured in DB");
+}
+createAdmin();
+
+
+
+
+
+
+
+
+
+// Create Product
+app.post("/api/products", upload.single("image"), async (req, res) => {
+  try {
+    const newProduct = new Product({
+      productName: req.body.productName,
+      image: req.file ? `/uploads/${req.file.filename}` : "",
+      quantity: req.body.quantity,
+      rate: req.body.rate,
+      status:req.body.status
+    });
+    await newProduct.save();
+    res.json(newProduct);
+  } catch (err) {
+  console.error("Error creating product:", err); // ✅ show in backend terminal
+  res.status(500).json({ error: err.message });
+}
+});
+
+// Get All Products
+app.get("/api/products", async (req, res) => {
+  const products = await Product.find();
+  res.json(products);
+});
+
+// Get Product by ID
+app.get("/api/products/:id", async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  res.json(product);
+});
+
+// Update Product
+app.put("/api/products/:id", upload.single("image"), async (req, res) => {
+  try {
+    const updatedData = {
+      productName: req.body.productName,
+      quantity: req.body.quantity,
+      rate: req.body.rate,
+       date: req.body.date ? new Date(req.body.date) : undefined,
+      status:req.body.status
+    };
+    if (req.file) updatedData.image = `/uploads/${req.file.filename}`;
+
+    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updatedData, { new: true });
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Product
+app.delete("/api/products/:id", async (req, res) => {
+  await Product.findByIdAndDelete(req.params.id);
+  res.json({ message: "Product deleted" });
+});
+
+
+// Signup route - only for normal users
+app.post("/api/signup", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await User.create({ name, email, password: hashedPassword, role: "user" });
+    res.status(201).json({ message: "User created successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Login route
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
+    res.json({ token, role: user.role, name: user.name });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Protected route example
+app.get("/api/protected", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "No token provided" });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({ message: `Hello ${decoded.role}`, user: decoded });
+  } catch {
+    res.status(401).json({ message: "Invalid token" });
+  }
+});
+
+
+
+app.listen(5000, () => console.log("Server running on port 5000"));
+
+
+
+
+11.
