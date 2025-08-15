@@ -1,6 +1,7 @@
 basics of mernstack. (crud with file,search,filter,pagination,user login-> home , admin login -> dashboard)
 
-
+( *NOTES*
+-------
 //don't forget to manually create a uploads folder on backend.for file storage 
 // remember to add   
 ,"start": "nodemon index.js" in backend package.json file.
@@ -12,6 +13,39 @@ eg:
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js"
   },
+
+
+(//A. in backend   terminal commands 
+------------------------
+1.npm init -y
+2.npm i express mongoose cors nodemon multer path bcrypt jsonwebtoken axios react-router-dom bootstrap)
+3.npm start
+
+B. FRONTEND
+-------------
+1.cd directory
+2.npm start
+
+Suppose vite.
+
+steps
+-------
+1.npm init vite
+2.project name:client
+3.selection from work: React
+                     :Javascript
+                     :cd client
+(install dependencies):npm install
+                      npm i bootstrap axios react-router-dom
+                      npm run dev
+
+
+)
+
+
+
+
+
 
 1.App.js
 
