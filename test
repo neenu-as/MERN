@@ -1,0 +1,121 @@
+import React from 'react'
+import { FaParking, FaTruck, FaPrayingHands, FaRestroom } from "react-icons/fa";
+import { MdCelebration, MdDinnerDining } from "react-icons/md";
+import './Services.css';
+
+export const Services = () => {
+  return (
+    <div className="container-fluid bg-colorss mt-5">
+
+      {/* Heading */}
+      <div className="row">
+        <div className="col-12 text-center">
+          <h2 className="text-dark mb-4">FACILITIES</h2>
+        </div>
+      </div>
+
+      {/* Cards Row */}
+      <div className="row">
+
+        <div className="col-md-4 mb-4 d-flex justify-content-center">
+          <div className="cards">
+            <div className="card-body text-center">
+              <FaParking size={30} className="mb-2" />
+              <h5 className="card-title">CAR PARKING</h5>
+              <p className="card-text text-dark">
+                Safe and spacious vehicle parking facilities available.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4 mb-4 d-flex justify-content-center">
+          <div className="cards">
+            <div className="card-body text-center">
+              <MdCelebration size={30} className="mb-2" />
+              <h5 className="card-title">EVENTS</h5>
+              <p className="card-text text-dark">
+                Host birthdays, anniversaries, and more.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4 mb-4 d-flex justify-content-center">
+          <div className="cards">
+            <div className="card-body text-center">
+              <FaTruck size={30} className="mb-2" />
+              <h5 className="card-title">HOME DELIVERY</h5>
+              <p className="card-text text-dark">
+                Enjoy your meals delivered right to your doorstep.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4 mb-4 d-flex justify-content-center">
+          <div className="cards">
+            <div className="card-body text-center">
+              <FaPrayingHands size={30} className="mb-2" />
+              <h5 className="card-title">PRAY HALL</h5>
+              <p className="card-text text-dark">
+                A serene pray hall to meet your spiritual needs.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4 mb-4 d-flex justify-content-center">
+          <div className="cards">
+            <div className="card-body text-center">
+              <MdDinnerDining size={30} className="mb-2" />
+              <h5 className="card-title">ONLINE DINING BOOKING</h5>
+              <p className="card-text text-dark">
+                Reserve your table with our online booking system.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4 mb-4 d-flex justify-content-center">
+          <div className="cards">
+            <div className="card-body text-center">
+              <FaRestroom size={30} className="mb-2" />
+              <h5 className="card-title">REST ROOM</h5>
+              <p className="card-text text-dark">
+                Clean and hygienic restrooms for your comfort.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+
+css
+_-----------------
+
+.cards {
+  width: 250px;
+  background: rgb(230, 225, 225);
+  border-radius: 10px;
+  overflow: hidden;
+  text-align: center;
+  transition: transform 0.2s;
+  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.1),
+              inset 3px 3px 7px rgb(24, 28, 23);
+}
+
+.cards:hover {
+  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.1),
+              inset -3px -3px 7px rgb(24, 28, 23);
+  transform: scale(1.03);
+  transition: .2s;
+}
+
+.bg-colorss {
+  background-color: rgb(164, 171, 167);
+}
