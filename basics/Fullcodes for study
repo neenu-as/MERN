@@ -23,6 +23,7 @@ eg:
 
 B. FRONTEND
 -------------
+npx create-react-app directory name 
 1.cd directory
 2.npm start
 
