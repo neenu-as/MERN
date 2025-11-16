@@ -1,1 +1,650 @@
+app.js
+------
+
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import 'bootstrap/dist/css/bootstrap.min.css'
+import Home from "./Home";
+import CreateProduct from "./Createproduct";
+
+import Updateproducts from "./Updateproduct";
+
+function App() {
+  return (
+     <Router>
+       <Routes>
+        <Route path="/home" element={<Home/>} />
+         <Route path="/create" element={<CreateProduct/>} />
+        <Route path="/edit/:id" element={<Updateproducts />} />
+       </Routes>
+      </Router>
+     
+       
+  );
+}
+
+export default App;
+
+
+
+
+1) home.js
+-----------
+
+
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { Link } from "react-router-dom";
+
+export default function Home() {
+
+  const [products, setProducts] = useState([]);
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+
+  const [filteredProducts, setFilteredProducts] = useState([]);
+
+  // Fetch products
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/products")
+      .then(res => {
+        setProducts(res.data);
+        setFilteredProducts(res.data);
+      })
+      .catch(err => console.log(err));
+  }, []);
+
+  // Delete product
+  const handleDelete = (id) => {
+    axios.delete(`http://localhost:5000/api/products/${id}`)
+      .then(() => setProducts(products.filter(p => p._id !== id)))
+      .catch(err => console.log(err));
+  };
+
+  // Apply filters
+  useEffect(() => {
+    let data = [...products];
+
+    if (searchTerm.trim()) {
+      data = data.filter((p) =>
+        p.productName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (statusFilter) {
+      data = data.filter((p) => p.status === statusFilter);
+    }
+
+    if (fromDate) {
+      data = data.filter((p) => new Date(p.date) >= new Date(fromDate));
+    }
+
+    if (toDate) {
+      data = data.filter((p) => new Date(p.date) <= new Date(toDate));
+    }
+
+    if (stockFilter === "in") {
+      data = data.filter((p) => p.quantity > 0);
+    } else if (stockFilter === "out") {
+      data = data.filter((p) => p.quantity === 0);
+    }
+
+    setFilteredProducts(data);
+  }, [searchTerm, statusFilter, fromDate, toDate, stockFilter, products]);
+
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-start p-4">
+
+      <div className="w-100 bg-white rounded p-4">
+        <h2 className="text-center">Product List</h2>
+
+        <Link to="/create">
+          <button className="btn btn-primary mb-3">Add Product</button>
+        </Link>
+
+        {/* 🔍 FILTER ROW */}
+        <div className="row mb-3">
+
+          <div className="col-md-3 mb-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by Product Name"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <input
+              type="date"
+              className="form-control"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-2 mb-2">
+            <input
+              type="date"
+              className="form-control"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-3 mb-2">
+            <select
+              className="form-control"
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+            >
+              <option value="">All Stock</option>
+              <option value="in">In Stock</option>
+              <option value="out">Out of Stock</option>
+            </select>
+          </div>
+
+        </div>
+
+        <table className="table table-bordered table-striped text-center">
+          <thead>
+            <tr>
+              <th>Product ID</th>
+              <th>Image</th>
+              <th>Product Name</th>
+              <th>Quantity</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((p) => (
+                <tr key={p._id}>
+
+                  <td>{p.productId}</td>
+
+                  <td>
+                    {p.image && (
+                      <img
+                        src={`http://localhost:5000${p.image}`}
+                        alt="product"
+                        width="50"
+                      />
+                    )}
+                  </td>
+
+                  <td>{p.productName}</td>
+                  <td>{p.quantity}</td>
+                  <td>{new Date(p.date).toLocaleDateString()}</td>
+                  <td>{p.status}</td>
+
+                  <td>
+                    <Link to={`/edit/${p._id}`}>
+                      <button className="btn btn-sm btn-warning">Edit</button>
+                    </Link>
+
+                    <button
+                      className="btn btn-sm btn-danger ms-2"
+                      onClick={() => handleDelete(p._id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="text-center">No products found</td>
+              </tr>
+            )}
+          </tbody>
+
+        </table>
+      </div>
+
+    </div>
+  );
+}
+
+
+
+2)create product.js
+--------------------
+
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+function CreateProduct() {
+  const [productId, setProductId] = useState("");
+  const [productName, setProductName] = useState("");
+  const [image, setImage] = useState(null);
+  const [quantity, setQuantity] = useState("");
+  const [date, setDate] = useState("");
+  const [status, setStatus] = useState("active");
+
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append("productId", productId);       // ⭐ FIXED
+    formData.append("productName", productName);
+    formData.append("image", image);
+    formData.append("quantity", quantity);
+    formData.append("date", date);
+    formData.append("status", status);
+
+    axios.post("http://localhost:5000/api/products", formData)
+      .then(() => navigate("/"))
+      .catch(err => console.log("Error:", err));
+  };
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-50 bg-white rounded p-5">
+
+        <h2 className="text-center">Create Product</h2>
+
+        <form onSubmit={handleSubmit} encType="multipart/form-data">
+          <div style={{ maxWidth: "400px" }}>
+
+            {/* Product ID */}
+            <label>Product ID</label>
+            <input
+              type="number"
+              placeholder="Enter Product ID"
+              className="form-control"
+              required
+              onChange={(e) => setProductId(e.target.value)}
+            />
+            <br />
+             {/* Product Image */}
+            <label>Product Image</label>
+            <input
+              type="file"
+              className="form-control"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files[0])}
+            />
+            <br />
+
+            {/* Product Name */}
+            <label>Product Name</label>
+            <input
+              type="text"
+              placeholder="Product Name"
+              className="form-control"
+              required
+              onChange={(e) => setProductName(e.target.value)}
+            />
+            <br />
+
+           
+
+            {/* Quantity */}
+            <label>Quantity</label>
+            <input
+              type="number"
+              placeholder="Quantity"
+              className="form-control"
+              required
+              onChange={(e) => setQuantity(e.target.value)}
+            />
+            <br />
+
+            {/* Date */}
+            <label>Date</label>
+            <input
+              type="date"
+              className="form-control"
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+            <br />
+
+            {/* Status */}
+            <label>Status</label>
+            <select
+              className="form-control"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <br />
+
+            <button className="btn btn-primary w-100" type="submit">
+              Save Product
+            </button>
+
+          </div>
+        </form>
+
+      </div>
+    </div>
+  );
+}
+
+export default CreateProduct;
+
+
+3)update product.js
+-------------------
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate, useParams } from "react-router-dom";
+
+export default function Updateproducts() {
+  const { id } = useParams();
+
+  const [productId, setProductId] = useState("");
+  const [productName, setProductName] = useState("");
+  const [image, setImage] = useState(null);
+  const [oldImage, setOldImage] = useState(""); // ⭐ show existing image
+  const [quantity, setQuantity] = useState("");
+  const [date, setDate] = useState("");
+  const [status, setStatus] = useState("active");
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios.get(`http://localhost:5000/api/products/${id}`)
+      .then(res => {
+        setProductId(res.data.productId);
+        setProductName(res.data.productName);
+        setQuantity(res.data.quantity);
+
+        setOldImage(res.data.image); // ⭐ previous image
+
+        setDate(new Date(res.data.date).toISOString().split("T")[0]);
+        setStatus(res.data.status);
+      })
+      .catch(err => console.log(err));
+  }, [id]);
+
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append("productId", productId);        // ⭐ UPDATED
+    formData.append("productName", productName);
+    formData.append("quantity", quantity);
+    formData.append("date", date);
+    formData.append("status", status);
+
+    if (image) {
+      formData.append("image", image); // only send if a new file is selected
+    }
+
+    axios.put(`http://localhost:5000/api/products/${id}`, formData)
+      .then(() => navigate("/"))
+      .catch(err => console.log(err));
+  };
+
+
+  return (
+    <div className="d-flex vh-100 bg-success justify-content-center align-items-center">
+      <div className="w-50 bg-white rounded p-4">
+
+        <h2 className="text-center mb-4">Edit Product</h2>
+
+        <form onSubmit={handleSubmit} encType="multipart/form-data">
+          <div style={{ maxWidth: "400px" }}>
+
+
+            {/* Product ID */}
+            <label>Product ID</label>
+            <input
+              type="number"
+              className="form-control"
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+              required
+            />
+            <br />
+
+            {/* Product Name */}
+            <label>Product Name</label>
+            <input
+              type="text"
+              className="form-control"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              required
+            />
+            <br />
+
+            {/* Existing Image Preview */}
+ {oldImage && (
+ <div>
+         
+  <input
+  type="file"
+  className="form-control"
+  accept="image/*"
+  onChange={(e) => setImage(e.target.files[0])}
+  />
+<br />
+
+ <img
+  src={`http://localhost:5000${oldImage}`}
+  alt="product"
+ width="100"
+ className="mb-2"
+  />
+    <br />
+  </div>
+            )}
+
+          
+
+            {/* Quantity */}
+            <label>Quantity</label>
+            <input
+              type="number"
+              className="form-control"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              required
+            />
+            <br />
+
+            {/* Date */}
+            <label>Date</label>
+            <input
+              type="date"
+              className="form-control"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+            <br />
+
+            {/* Status */}
+            <label>Status</label>
+            <select
+              className="form-control"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <br />
+
+            <button className="btn btn-primary w-100" type="submit">
+              Update Product
+            </button>
+
+          </div>
+        </form>
+
+      </div>
+    </div>
+  );
+}
+
+
+backend
+----------
+
+
+1)models/Products.js  (p caps)
+--------------------
+const mongoose = require("mongoose");
+
+const ProductSchema = new mongoose.Schema({
+  productId: { type: Number, required: true, unique: true },  // ⭐ Add unique to avoid duplicates
+  image: { type: String }, 
+  productName: { type: String, required: true },
+  quantity: { type: Number, required: true },   // ⭐ Correct spelling
+  date: { type: Date, default: Date.now },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active'
+  }
+});
+
+module.exports = mongoose.model("Product", ProductSchema);
+
+2) index.js
+----------------
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+
+const multer = require("multer");
+const path = require("path");
+
+const Product = require("./models/Products");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); 
+
+// Multer setup
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads"),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage });
+
+// MongoDB
+mongoose.connect("mongodb://127.0.0.1:27017/productsdbase")
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log(err));
+
+
+
+// Create Product
+app.post("/api/products", upload.single("image"), async (req, res) => {
+  try {
+    const newProduct = new Product({
+      productId: req.body.productId,               // ⭐ Fix #1 (IMPORTANT)
+      productName: req.body.productName,
+      image: req.file ? `/uploads/${req.file.filename}` : "",
+      quantity: req.body.quantity,
+      status: req.body.status
+    });
+
+    await newProduct.save();
+    res.json(newProduct);
+
+  } catch (err) {
+    console.error("Error creating product:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+// Get All Products
+app.get("/api/products", async (req, res) => {
+  const products = await Product.find();
+  res.json(products);
+});
+
+
+
+// Get Product by ID
+app.get("/api/products/:id", async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  res.json(product);
+});
+
+
+
+// Update Product
+app.put("/api/products/:id", upload.single("image"), async (req, res) => {
+  try {
+    const updatedData = {
+      productId: req.body.productId,              // ⭐ Fix #2 (IMPORTANT)
+      productName: req.body.productName,
+      quantity: req.body.quantity,
+      status: req.body.status,
+      date: req.body.date ? new Date(req.body.date) : undefined
+    };
+
+    if (req.file) {
+      updatedData.image = `/uploads/${req.file.filename}`;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      updatedData,
+      { new: true }
+    );
+
+    res.json(updatedProduct);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+// Delete Product
+app.delete("/api/products/:id", async (req, res) => {
+  await Product.findByIdAndDelete(req.params.id);
+  res.json({ message: "Product deleted" });
+});
+
+
+
+app.listen(5000, () => console.log("Server running on port 5000"));
+
+
+
 
