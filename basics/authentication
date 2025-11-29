@@ -1,0 +1,345 @@
+ back end 
+
+models/User.js 
+----------
+const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String,
+  role: { type: String, default: "admin" } 
+});
+
+module.exports = mongoose.model("User", userSchema);
+
+
+index.js 
+---------------
+
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const path = require("path");
+
+const User = require("./models/User");
+const Order = require("./models/Order");
+const Coupon = require("./models/Coupon");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads"),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, 
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext && mime) cb(null, true);
+    else cb(new Error("Only .png, .jpg and .jpeg format allowed!"));
+  }
+});
+
+
+// DB Connection
+mongoose.connect("mongodb://127.0.0.1:27017/newproductdb")
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log(err));
+
+
+
+//   CREATE DEFAULT ADMIN 
+
+async function createDefaultAdmin() {
+  const adminExists = await User.findOne({ email: "admin@gmail.com" });
+
+  if (!adminExists) {
+    const hashed = await bcrypt.hash("admin@123", 10);
+    await User.create({
+      name: "Admin",
+      email: "admin@gmail.com",
+      password: hashed,
+      role: "admin"
+    });
+    console.log("Default admin created");
+  }
+}
+createDefaultAdmin();
+
+
+//SIGNUP 
+app.post("/api/signup", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const exist = await User.findOne({ email });
+    if (exist) return res.status(400).json({ message: "Email already exists" });
+
+    const hashedPass = await bcrypt.hash(password, 10);
+
+    await User.create({
+      name,
+      email,
+      password: hashedPass,
+      role: "user"
+    });
+
+    res.json({ message: "Signup successful" });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// login 
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid email" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid password" });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, "secret123");
+
+    res.json({
+      message: "Login success",
+      token,
+      role: user.role
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// Start Server
+app.listen(5000, () => console.log("Server running on port 5000"));
+
+
+
+frontend 
+--------------
+app.js 
+----------
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import 'bootstrap/dist/css/bootstrap.min.css';
+
+import Login from "./components/Login";
+import Signup from "./components/Signup";
+import Dashboard from "./components/Dashboard";
+
+import PrivateRoute from "./utils/PrivateRoute";
+import Home from "./components/Home";
+import OrderList from "./components/Orderlist";
+import Orderform from "./components/Orderform";
+import EditOrder from "./components/Editorder";
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+
+        {/* Default page → go to login */}
+        <Route path="/" element={<Navigate to="/login" />} />
+
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* Protected route */}
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+<Route path='/home' element={<Home/>} />
+ <Route path="/addorder" element={<Orderform/>} />
+  <Route path="/orderlist" element={<OrderList/>} />
+  <Route path="/editorder/:id" element={<EditOrder/>} />
+
+
+
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
+
+
+dashboard 
+-----------------
+import React from 'react'
+import { Link } from 'react-router-dom'
+
+export default function Dashboard() {
+  return (
+    <div>
+       <h2>Welcome to DASHBOARD</h2>
+      <p>You are logged in successfully.</p>
+       <div>
+        <Link className="btn btn-primary" to="/orderlist">View Orders</Link>
+        <Link className="btn btn-success ms-2" to="/addorder">Add Order</Link>
+      </div>
+      </div>
+  )
+}
+home.js 
+-------
+
+import React from 'react'
+
+export default function Home() {
+  return (
+    <div className="p-4">
+      <h2>Welcome User</h2>
+      <p>You are logged in successfully.</p>
+    </div>
+  );
+}
+
+login .js 
+------
+import { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post("http://localhost:5000/api/login", {
+        email,
+        password
+      });
+
+      localStorage.setItem("token", res.data.token);
+
+      if (res.data.role === "admin") {
+        navigate("/dashboard");
+      } else {
+        navigate("/home");
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || "Login failed";
+      alert(msg);
+    }
+  };
+
+  return (
+    <div className="d-flex justify-content-center align-items-center vh-100 bg-secondary">
+      <div className="bg-white p-3 rounded w-25">
+        <form onSubmit={handleSubmit}>
+          <h2>Login</h2>
+          <input className="form-control mb-2"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
+          <input className="form-control mb-2"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+          />
+          <button className="btn btn-primary w-100">Login</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+sign up.js 
+0---------------
+
+import { useState } from "react";
+import axios from "axios";
+import { useNavigate, Link } from "react-router-dom";
+
+export default function Signup() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post("http://localhost:5000/api/signup", {
+        name,
+        email,
+        password
+      });
+
+      alert("Signup successful! Please login.");
+      navigate("/login");
+
+    } catch (err) {
+      const msg = err.response?.data?.message || "Signup failed";
+      alert(msg);
+    }
+  };
+
+  return (
+    <div className="d-flex justify-content-center align-items-center vh-100 bg-secondary">
+      <div className="bg-white p-3 rounded w-25">
+        <form onSubmit={handleSubmit}>
+          <h2>User Signup</h2>
+
+          <input className="form-control mb-2"
+            placeholder="Name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+          />
+
+          <input className="form-control mb-2"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
+
+          <input className="form-control mb-2"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+          />
+
+          <button className="btn btn-primary w-100">Signup</button>
+
+          <p className="mt-2 text-center">
+            Already have an account? <Link to="/login">Login</Link>
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}
